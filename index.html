@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Handwashing AR Guide</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #000;
+    }
+
+    #ar-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #overlay {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      z-index: 1000;
+      border: 2px solid #00ff88;
+    }
+
+    #start-ar {
+      background: #00ff88;
+      color: black;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    #fps-counter {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #00ff88;
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 1000;
+      font-family: monospace;
+    }
+
+    #status {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      z-index: 1000;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="ar-container">
+    <div id="overlay">
+      <button id="start-ar">🚀 Start AR Experience</button>
+      <div>Point your camera at your hands to begin</div>
+    </div>
+    <div id="fps-counter">FPS: --</div>
+    <div id="status">Loading AR...</div>
+  </div>
+  <script type="module" src="/main.js"></script>
+</body>
+
+</html>
