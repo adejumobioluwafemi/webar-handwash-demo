@@ -3,31 +3,37 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import Stats from 'stats.js';
 
+import {
+    FilesetResolver,
+    PoseLandmarker,
+} from "@mediapipe/tasks-vision"
+
 let scene, camera, renderer, model, stats;
+let video, poseLandmarker;
 let overlayResponseTimes = [];
 let lastOverlayUpdate = performance.now();
 
 init();
 animate();
 
-function init() {
-    // 1️⃣ Scene setup
+async function init() {
+    // Scene setup
     scene = new THREE.Scene();
 
-    // 2️⃣ Camera setup
+    // Camera setup
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.z = 1;
 
-    // 3️⃣ Renderer setup — use WebGL + camera feed background
+    // Renderer setup — use WebGL + camera feed background
     renderer = new THREE.WebGLRenderer({ alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // 4️⃣ Add ambient light
+    // Add ambient light
     const light = new THREE.AmbientLight(0xffffff, 1.5);
     scene.add(light);
 
-    // 5️⃣ Load the overlay (arrow)
+    // Load the overlay (arrow)
     const loader = new GLTFLoader();
     loader.load(
         '/direction_arrow/arrow.gltf',
@@ -43,16 +49,19 @@ function init() {
         (error) => console.error('Error loading model:', error)
     );
 
-    // 6️⃣ Add FPS monitor
+    // Add FPS monitor
     stats = new Stats();
     stats.showPanel(0); // 0: fps, 1: ms, 2: memory
     document.body.appendChild(stats.dom);
 
-    // 7️⃣ Resize handler
+    // Resize handler
     window.addEventListener('resize', onWindowResize, false);
 
-    // 8️⃣ Setup video background (rear camera)
-    setupCameraFeed();
+    // Setup video background (rear camera)
+    await setupCameraFeed();
+
+    // setup pose detector
+    await setupPoseLandmarker();
 }
 
 function onWindowResize() {
@@ -75,7 +84,7 @@ async function setupCameraFeed() {
         document.body.appendChild(video);
 
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' } // use rear camera
+            video: { facingMode: 'user' } // "environment" rear camera / "user" for front camera
         });
         video.srcObject = stream;
     } catch (err) {
@@ -83,6 +92,33 @@ async function setupCameraFeed() {
     }
 }
 
+// setup mediapipe pose landmarker
+async function setupPoseLandmarker() {
+    const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest"
+    );
+
+    poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+        baseOptions: {
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
+        },
+        runningMode: "VIDEO",
+        numPoses: 1,
+    });
+}
+
+// pose detection canvas overlay
+const poseCanvas = document.createElement("canvas");
+const ctx = poseCanvas.getContext("2d");
+poseCanvas.width = window.innerWidth;
+poseCanvas.height = window.innerHeight;
+poseCanvas.style.position = "fixed";
+poseCanvas.style.top = "0";
+poseCanvas.style.left = "0";
+poseCanvas.style.pointerEvents = "none";
+document.body.appendChild(poseCanvas);
+
+// main animation
 function animate() {
     requestAnimationFrame(animate);
     stats.begin();
@@ -104,6 +140,37 @@ function animate() {
 
     // Display FPS & overlay stats
     displayPerformanceInfo();
+    if (poseLandmarker && video.readyState >= 2) detectPose();
+}
+
+function detectPose() {
+    const start = performance.now();
+    const results = poseLandmarker.detectForVideo(video, start);
+    drawPose(results)
+}
+
+// draw pose landmarks
+function drawPose(results) {
+    ctx.clearRect(0, 0, poseCanvas.width, poseCanvas.height);
+
+    if (!results.landmarks) return;
+
+    ctx.fillStyle = "rgba(0, 255, 0, 0.7)";
+    ctx.strokeStyle = "rgba(0, 255, 0, 0.4)";
+    ctx.lineWidth = 2;
+
+    for (const landmarks of results.landmarks) {
+        for (const lm of landmarks) {
+            const x = lm.x * poseCanvas.width;
+            const y = lm.y * poseCanvas.height;
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, 2 * Math.PI);
+            ctx.fill();
+
+        }
+    }
+
+    // (later) connect landmarks lines, gestures
 }
 
 function displayPerformanceInfo() {
