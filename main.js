@@ -55,7 +55,12 @@ async function init() {
     document.body.appendChild(stats.dom);
 
     // Resize handler
-    window.addEventListener('resize', onWindowResize, false);
+    //window.addEventListener('resize', onWindowResize, false);
+    window.addEventListener("resize", () => {
+        poseCanvas.width = window.innerWidth;
+        poseCanvas.height = window.innerHeight;
+    });
+
 
     // Setup video background (rear camera)
     await setupCameraFeed();
@@ -100,11 +105,13 @@ async function setupPoseLandmarker() {
 
     poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
         baseOptions: {
-            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
+            modelAssetPath: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/pose_landmarker_lite.task"
         },
         runningMode: "VIDEO",
         numPoses: 1,
     });
+    await poseLandmarker.setOptions({ runningMode: "VIDEO" });
+    console.log("✅ Pose model loaded");
 }
 
 // pose detection canvas overlay
@@ -115,6 +122,7 @@ poseCanvas.height = window.innerHeight;
 poseCanvas.style.position = "fixed";
 poseCanvas.style.top = "0";
 poseCanvas.style.left = "0";
+poseCanvas.style.zIndex = "10";
 poseCanvas.style.pointerEvents = "none";
 document.body.appendChild(poseCanvas);
 
@@ -136,17 +144,34 @@ function animate() {
     }
 
     renderer.render(scene, camera);
+    if (poseLandmarker && video.readyState >= 2 && video.videoWidth > 0) {
+        try {
+            const start = performance.now();
+            const results = poseLandmarker.detectForVideo(video, start);
+            drawPose(results);
+        } catch (err) {
+            console.error("Pose detection error:", err);
+        }
+    }
     stats.end();
-
     // Display FPS & overlay stats
     displayPerformanceInfo();
-    if (poseLandmarker && video.readyState >= 2) detectPose();
+
+
 }
 
 function detectPose() {
     const start = performance.now();
-    const results = poseLandmarker.detectForVideo(video, start);
-    drawPose(results)
+    if (video.videoWidth === 0) {
+        console.warn("Video not ready yet");
+        return;
+    }
+    try {
+        const results = poseLandmarker.detectForVideo(video, start);
+        drawPose(results);
+    } catch (err) {
+        console.error("Pose detection error:", err);
+    }
 }
 
 // draw pose landmarks
@@ -154,6 +179,7 @@ function drawPose(results) {
     ctx.clearRect(0, 0, poseCanvas.width, poseCanvas.height);
 
     if (!results.landmarks) return;
+    console.log("Detected landmarks:", results.landmarks);
 
     ctx.fillStyle = "rgba(0, 255, 0, 0.7)";
     ctx.strokeStyle = "rgba(0, 255, 0, 0.4)";
