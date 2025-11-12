@@ -7,11 +7,15 @@ import {
     FilesetResolver,
     PoseLandmarker,
 } from "@mediapipe/tasks-vision"
+import { distance, getColorSpaceMethod } from 'three/src/nodes/TSL.js';
 
 let scene, camera, renderer, model, stats;
 let video, poseLandmarker;
 let overlayResponseTimes = [];
 let lastOverlayUpdate = performance.now();
+let goodJobText;
+let rubbingStartTime = null;
+let showGoodJob = false;
 
 init();
 animate();
@@ -67,6 +71,23 @@ async function init() {
 
     // setup pose detector
     await setupPoseLandmarker();
+
+    // "Good Job" overlay text
+    goodJobText = document.createElement('div');
+    goodJobText.innerText = "✅ Good Job!";
+    Object.assign(goodJobText.style, {
+        position: 'fixed',
+        top: '30%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        fontSize: '3em',
+        color: 'lime',
+        fontWeight: 'bold',
+        textShadow: '0 0 10px black',
+        display: 'none',
+        zIndex: '20'
+    });
+    document.body.appendChild(goodJobText);
 }
 
 function onWindowResize() {
@@ -89,7 +110,7 @@ async function setupCameraFeed() {
         document.body.appendChild(video);
 
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user' }
+            video: { facingMode: 'user' } // "environment" = rear camera
         });
         video.srcObject = stream;
 
@@ -151,6 +172,7 @@ function animate() {
     }
 
     renderer.render(scene, camera);
+
     if (poseLandmarker && video.readyState >= 2 && video.videoWidth > 0) {
         try {
             const start = performance.now();
@@ -186,7 +208,7 @@ function detectPose() {
 }
 
 // draw pose landmarks
-function drawPose(results) {
+function drawPose2(results) {
     ctx.clearRect(0, 0, poseCanvas.width, poseCanvas.height);
 
     if (!results.landmarks) return;
@@ -210,19 +232,83 @@ function drawPose(results) {
     // (later) connect landmarks lines, gestures
 }
 
+function drawPose(results) {
+    ctx.clearRect(0, 0, poseCanvas.width, poseCanvas.height);
+    ctx.fillStyle = "rgba(0, 255, 0, 0.7)";
+
+    results.landmarks.forEach(landmarks => {
+        landmarks.forEach(lm => {
+            const x = lm.x * poseCanvas.width;
+            const y = lm.y * poseCanvas.height;
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+    });
+}
+
+function detectHandRubbing(landmarks) {
+    const leftWrist = landmarks[15];
+    const rightWrist = landmarks[16];
+    const leftIndex = landmarks[19];
+    const rightIndex = landmarks[20];
+
+    if (!leftWrist || !rightWrist || !leftIndex || !rightIndex) return;
+
+    const distWrist = distance(leftWrist, rightWrist);
+    const distIndex = distance(leftIndex, rightIndex);
+
+    console.log(`Wrists: ${distWrist.toFixed(3)}, Index: ${distIndex.toFixed(3)}`);
+
+    // record for AI coach
+    console.log({
+        time: new Date().toISOString(),
+        leftWrist,
+        rightWrist,
+        leftIndex,
+        rightIndex,
+    });
+
+    const threshold = 0.07; // closer hands
+    const bothClose = distWrist < threshold && distIndex < threshold;
+
+    if (bothClose) {
+        if (!rubbingStartTime) rubbingStartTime = performance.now();
+        else if (performance.now() - rubbingStartTime > 300) {
+            if (!showGoodJob) {
+                showGoodJob = true;
+                goodJobText.style.display = "block";
+                setTimeout(() => (goodJobText.style.display = "none"), 2000)
+            }
+        }
+    } else {
+        rubbingStartTime = null;
+        showGoodJob = false;
+    }
+}
+
+function distance(a, b) {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    const dz = a.z - b.z;
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
 function displayPerformanceInfo() {
     let infoDiv = document.getElementById('perf-info');
     if (!infoDiv) {
         infoDiv = document.createElement('div');
         infoDiv.id = 'perf-info';
-        infoDiv.style.position = 'fixed';
-        infoDiv.style.bottom = '10px';
-        infoDiv.style.left = '10px';
-        infoDiv.style.background = 'rgba(0,0,0,0.5)';
-        infoDiv.style.color = 'white';
-        infoDiv.style.padding = '8px';
-        infoDiv.style.borderRadius = '8px';
-        infoDiv.style.fontSize = '14px';
+        Object.assign(infoDiv.style, {
+            position: 'fixed',
+            bottom: '10px',
+            left: '10px',
+            background: 'rgba(0,0,0,0.5)',
+            color: 'white',
+            padding: '8px',
+            borderRadius: '8px',
+            fontSize: '14px'
+        });
         document.body.appendChild(infoDiv);
     }
 
