@@ -4,18 +4,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Handwash WebAR Demo</title>
-  <link rel="stylesheet" href="styles.css" />
+  <title>WebAR Handwash Demo</title>
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 
-<body style="margin:0; overflow:hidden; background:black;">
-  <!-- Camera Feed -->
-  <video id="video" autoplay playsinline
-    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1;"></video>
-
-  <!-- 3D Overlay Canvas -->
-  <canvas id="ar-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2;"></canvas>
-
+<body>
   <script type="module" src="/main.js"></script>
 </body>
 
