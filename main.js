@@ -45,7 +45,7 @@ function initThree() {
 
     const loader = new GLTFLoader();
     loader.load(
-        '/asset/direction_arrow/arrow.gltf',
+        '/assets/direction_arrow/arrow.gltf',
         (gltf) => {
             arrowModel = gltf.scene;
             arrowModel.scale.set(0.5, 0.5, 0.5);
