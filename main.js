@@ -247,6 +247,7 @@ function drawPose(results) {
     });
 }
 
+// Detect when hands are rubbing together
 function detectHandRubbing(landmarks) {
     const leftWrist = landmarks[15];
     const rightWrist = landmarks[16];
@@ -278,7 +279,10 @@ function detectHandRubbing(landmarks) {
             if (!showGoodJob) {
                 showGoodJob = true;
                 goodJobText.style.display = "block";
-                setTimeout(() => (goodJobText.style.display = "none"), 2000)
+                setTimeout(() => {
+                    goodJobText.style.display = "none";
+                    showGoodJob = false;
+                }, 2000);
             }
         }
     } else {
@@ -287,6 +291,7 @@ function detectHandRubbing(landmarks) {
     }
 }
 
+// Helper to compute 3D distance between two keypoints
 function distance(a, b) {
     const dx = a.x - b.x;
     const dy = a.y - b.y;
