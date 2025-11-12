@@ -33,7 +33,7 @@ function init() {
         '/direction_arrow/arrow.gltf',
         (gltf) => {
             model = gltf.scene;
-            model.scale.set(1, 1, 1);
+            model.scale.set(0.6, 0.6, 0.6);
             model.position.set(0, -0.2, -1.2);
             scene.add(model);
         },
@@ -87,22 +87,22 @@ function animate() {
     requestAnimationFrame(animate);
     stats.begin();
 
-    // 🟩 Overlay update simulation — measure responsiveness
+    // Overlay update simulation — measure responsiveness
     const now = performance.now();
     const overlayLag = now - lastOverlayUpdate;
     overlayResponseTimes.push(overlayLag);
     if (overlayResponseTimes.length > 60) overlayResponseTimes.shift();
     lastOverlayUpdate = now;
 
-    // 🌀 Animate the arrow slightly (demo)
+    // Animate the arrow slightly (demo)
     if (model) {
-        model.rotation.y += 0.01;
+        model.rotation.y += 0.02;
     }
 
     renderer.render(scene, camera);
     stats.end();
 
-    // 🟦 Display FPS & overlay stats
+    // Display FPS & overlay stats
     displayPerformanceInfo();
 }
 
