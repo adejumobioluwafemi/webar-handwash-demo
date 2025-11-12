@@ -256,8 +256,8 @@ function detectHandRubbing(landmarks) {
 
     if (!leftWrist || !rightWrist || !leftIndex || !rightIndex) return;
 
-    const distWrist = distance(leftWrist, rightWrist);
-    const distIndex = distance(leftIndex, rightIndex);
+    const distWrist = distance_(leftWrist, rightWrist);
+    const distIndex = distance_(leftIndex, rightIndex);
 
     console.log(`Wrists: ${distWrist.toFixed(3)}, Index: ${distIndex.toFixed(3)}`);
 
@@ -292,7 +292,7 @@ function detectHandRubbing(landmarks) {
 }
 
 // Helper to compute 3D distance between two keypoints
-function distance(a, b) {
+function distance_(a, b) {
     const dx = a.x - b.x;
     const dy = a.y - b.y;
     const dz = a.z - b.z;
