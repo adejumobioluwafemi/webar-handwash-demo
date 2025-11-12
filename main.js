@@ -47,11 +47,10 @@ function initThree() {
     loader.load(
         '/direction_arrow/arrow.gltf',
         (gltf) => {
-            console.log('Arrow model loaded:', gltf);
-            arrowModel = gltf.scene;
-            arrowModel.scale.set(0.5, 0.5, 0.5);
-            arrowModel.position.set(0, 0, -1);
-            scene.add(arrowModel);
+            const model = gltf.scene;
+            model.scale.set(2, 2, 2);
+            model.position.set(0, 0, -1);
+            scene.add(model);
         },
         undefined,
         (error) => console.error('Error loading arrow:', error)
