@@ -33,7 +33,7 @@ function init() {
         '/direction_arrow/arrow.gltf',
         (gltf) => {
             model = gltf.scene;
-            model.scale.set(2, 2, 2);
+            model.scale.set(1, 1, 1);
             model.position.set(0, -0.2, -1.2);
             scene.add(model);
         },
