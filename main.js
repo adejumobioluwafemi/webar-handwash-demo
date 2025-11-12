@@ -77,7 +77,7 @@ function onWindowResize() {
 
 async function setupCameraFeed() {
     try {
-        const video = document.createElement('video');
+        video = document.createElement('video'); // global variable
         video.autoplay = true;
         video.playsInline = true;
         video.style.position = 'fixed';
@@ -85,13 +85,18 @@ async function setupCameraFeed() {
         video.style.left = '0';
         video.style.width = '100%';
         video.style.height = '100%';
-        video.style.zIndex = '-1'; // behind canvas
+        video.style.zIndex = '-1';
         document.body.appendChild(video);
 
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user' } // "environment" rear camera / "user" for front camera
+            video: { facingMode: 'user' }
         });
         video.srcObject = stream;
+
+        await new Promise(resolve => {
+            video.onloadedmetadata = () => resolve();
+        });
+        console.log("✅ Camera initialized");
     } catch (err) {
         console.error('Camera access denied:', err);
     }
@@ -124,6 +129,8 @@ poseCanvas.style.top = "0";
 poseCanvas.style.left = "0";
 poseCanvas.style.zIndex = "10";
 poseCanvas.style.pointerEvents = "none";
+document.body.appendChild(video);
+document.body.appendChild(renderer.domElement);
 document.body.appendChild(poseCanvas);
 
 // main animation
@@ -148,6 +155,10 @@ function animate() {
         try {
             const start = performance.now();
             const results = poseLandmarker.detectForVideo(video, start);
+            if (results.landmarks && results.landmarks.length > 0) {
+                console.log("Pose detected!", results.landmarks[0].length, "keypoints");
+            }
+
             drawPose(results);
         } catch (err) {
             console.error("Pose detection error:", err);
