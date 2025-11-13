@@ -44,20 +44,20 @@ async function init() {
     scene.add(light);
 
     // Load the overlay (arrow)
-    const loader = new GLTFLoader();
-    loader.load(
-        '/direction_arrow/arrow.gltf',
-        (gltf) => {
-            model = gltf.scene;
-            model.scale.set(1, 1, 1);
-            model.position.set(0, -0.2, -1.2);
-            scene.add(model);
-        },
-        (xhr) => {
-            console.log(`Model ${(xhr.loaded / xhr.total) * 100}% loaded`);
-        },
-        (error) => console.error('Error loading model:', error)
-    );
+    //const loader = new GLTFLoader();
+    //loader.load(
+    //    '/direction_arrow/arrow.gltf',
+    //    (gltf) => {
+    //        model = gltf.scene;
+    //        model.scale.set(1, 1, 1);
+    //        model.position.set(0, -0.2, -1.2);
+    //        scene.add(model);
+    //    },
+    //    (xhr) => {
+    //        console.log(`Model ${(xhr.loaded / xhr.total) * 100}% loaded`);
+    //    },
+    //    (error) => console.error('Error loading model:', error)
+    //);
 
     // Add FPS monitor
     stats = new Stats();
@@ -212,9 +212,9 @@ function animate() {
     lastOverlayUpdate = now;
 
     // Animate the arrow slightly (demo)
-    if (model) {
-        model.rotation.y += 0.02;
-    }
+    //if (model) {
+    //    model.rotation.y += 0.02;
+    //}
 
     renderer.render(scene, camera);
 
