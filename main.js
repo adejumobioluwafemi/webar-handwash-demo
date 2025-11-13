@@ -19,6 +19,8 @@ let lastOverlayUpdate = performance.now();
 let goodJobText;
 let rubbingStartTime = null;
 let showGoodJob = false;
+let lastDistance = null;     // store previous distance between hands
+let velocity = 0;            // to measure hand motion speed
 let lastUpdateTime = performance.now();
 
 init();
@@ -44,7 +46,7 @@ async function init() {
     // Load the overlay (arrow)
     const loader = new GLTFLoader();
     loader.load(
-        '/public/direction_arrow/arrow.gltf',
+        '/direction_arrow/arrow.gltf',
         (gltf) => {
             model = gltf.scene;
             model.scale.set(1, 1, 1);
@@ -517,5 +519,5 @@ function displayPerformanceInfo() {
         overlayResponseTimes.reduce((a, b) => a + b, 0) / overlayResponseTimes.length
     ).toFixed(2);
 
-    infoDiv.innerHTML = `Overlay lag: ${avgOverlayLag} ms`;
+    infoDiv.innerHTML = `FPS: ${stats.dom.children[0].textContent}, Overlay lag: ${avgOverlayLag} ms`;
 }
