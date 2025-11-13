@@ -40,7 +40,7 @@ async function init() {
     // Load the overlay (arrow)
     const loader = new GLTFLoader();
     loader.load(
-        '/direction_arrow/arrow.gltf',
+        '/twohands.gltf',
         (gltf) => {
             model = gltf.scene;
             model.scale.set(0.3, 0.5, 0.3);
@@ -66,7 +66,7 @@ async function init() {
     });
 
 
-    // Setup video background (rear camera)
+    // setup video background 
     await setupCameraFeed();
 
     // setup pose detector
@@ -136,8 +136,8 @@ async function setupPoseLandmarker() {
         },
         runningMode: "VIDEO",
         numPoses: 1,
-        minPoseDetectionConfidence: 0.7,
-        minTrackingConfidence: 0.7,
+        minPoseDetectionConfidence: 0.8,
+        minTrackingConfidence: 0.8,
     });
     await poseLandmarker.setOptions({ runningMode: "VIDEO" });
     console.log("✅ Pose model loaded");
@@ -223,12 +223,13 @@ function drawPose(results) {
     ctx.strokeStyle = "rgba(0, 255, 0, 0.4)";
     ctx.lineWidth = 2;
 
+    // connect landmarks lines
     const connections = [
         [11, 13], [13, 15], // Left arm
         [12, 14], [14, 16], // Right arm
         [11, 12],           // Shoulders
-        [15, 17], [16, 18], // Hands
-        [23, 24], [11, 23], [12, 24] // Torso
+        [15, 17], [16, 18] // Hands
+        //[23, 24], [11, 23], [12, 24] // Torso
     ];
 
     ctx.beginPath();
@@ -259,7 +260,7 @@ function drawPose(results) {
         ctx.fill();
     }
 
-    // (later) connect landmarks lines, gestures
+    // gestures
     detectHandRubbing(landmarks);
 }
 
