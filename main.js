@@ -297,7 +297,7 @@ function connectHandLandmarks(ctx, landmarks) {
     ctx.stroke();
 }
 
-function detectHandRubbing(hands) {
+function detectHandRubbing2(hands) {
     const left = hands[0][0]; // Palm base
     const right = hands[1][0];
     if (!left || !right) return;
@@ -308,8 +308,8 @@ function detectHandRubbing(hands) {
 
     if (lastDistance !== null) {
         const velocity = Math.abs(dist - lastDistance) / deltaT; // m/s equivalent
-        const close = dist < 0.15; // Hands close
-        const fast = velocity > 0.1; // Rubbing motion threshold
+        const close = dist < 0.3; // Hands close
+        const fast = velocity > 0.07; // Rubbing motion threshold
 
         if (close && fast) {
             if (!rubbingStartTime) rubbingStartTime = now;
@@ -330,6 +330,96 @@ function detectHandRubbing(hands) {
 
     lastDistance = dist;
     lastUpdateTime = now;
+}
+
+function detectHandRubbing(hands) {
+    const left = hands[0][0]; // Palm base
+    const right = hands[1][0];
+    if (!left || !right) return;
+
+    const dist = distance_(left, right);
+    const now = performance.now();
+    const deltaT = (now - lastUpdateTime) / 1000;
+
+    if (lastDistance !== null) {
+        const velocity = Math.abs(dist - lastDistance) / deltaT; // m/s equivalent
+        const close = dist < 0.3; // Hands close
+        const fast = velocity > 0.05; // Rubbing motion threshold
+
+        if (close && fast) {
+            if (!rubbingStartTime) {
+                rubbingStartTime = now;
+                console.log("Rubbing started at:", new Date().toLocaleTimeString());
+            } else {
+                const rubbingDuration = now - rubbingStartTime;
+                const remainingTime = Math.max(0, 20000 - rubbingDuration);
+
+                // Update progress display
+                updateProgressDisplay(rubbingDuration, 20000);
+
+                // 20000ms (20 seconds)
+                if (rubbingDuration > 20000 && !showGoodJob) {
+                    showGoodJob = true;
+                    goodJobText.style.display = "block";
+                    console.log("Good job! Handwashing duration:", (rubbingDuration / 1000).toFixed(1) + "s");
+
+                    setTimeout(() => {
+                        goodJobText.style.display = "none";
+                        showGoodJob = false;
+                        // Reset for next attempt
+                        rubbingStartTime = null;
+                    }, 3000); // Show message for 3 seconds
+                }
+            }
+        } else {
+            // If rubbing stops, reset the timer
+            if (rubbingStartTime) {
+                const interruptedDuration = now - rubbingStartTime;
+                console.log("Handwashing interrupted after:", (interruptedDuration / 1000).toFixed(1) + "s");
+            }
+            rubbingStartTime = null;
+            hideProgressDisplay(); // Hide progress if rubbing stops
+        }
+
+        displayDistanceInfo(dist, velocity);
+    }
+
+    lastDistance = dist;
+    lastUpdateTime = now;
+}
+
+// Add progress feedback for the 20-seconds
+function updateProgressDisplay(elapsed, total) {
+    let progressDiv = document.getElementById('progress-display');
+    if (!progressDiv) {
+        progressDiv = document.createElement('div');
+        progressDiv.id = 'progress-display';
+        Object.assign(progressDiv.style, {
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'rgba(0,0,0,0.8)',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '10px',
+            fontSize: '1.5em',
+            zIndex: '100'
+        });
+        document.body.appendChild(progressDiv);
+    }
+
+    const percent = Math.min(100, (elapsed / total) * 100);
+    const remaining = Math.max(0, (total - elapsed) / 1000);
+    progressDiv.innerHTML = `Keep washing!<br>${percent.toFixed(0)}% Complete<br>${remaining.toFixed(1)}s remaining`;
+    progressDiv.style.display = 'block';
+}
+
+function hideProgressDisplay() {
+    const progressDiv = document.getElementById('progress-display');
+    if (progressDiv) {
+        progressDiv.style.display = 'none';
+    }
 }
 
 // draw pose landmarks
