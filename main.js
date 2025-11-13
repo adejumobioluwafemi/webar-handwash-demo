@@ -6,7 +6,8 @@ import Stats from 'stats.js';
 import {
     FilesetResolver,
     //PoseLandmarker,
-    HandLandmarker
+    HandLandmarker,
+    PoseLandmarker
 } from "@mediapipe/tasks-vision"
 import { distance, getColorSpaceMethod } from 'three/src/nodes/TSL.js';
 
@@ -133,23 +134,41 @@ async function setupCameraFeed() {
 // setup mediapipe pose landmarker
 async function setupPoseLandmarker() {
     const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
     );
 
     poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
         baseOptions: {
             //modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
             //modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task"
-            modelAssetPath: "hand_landmarker.task"
         },
         runningMode: "VIDEO",
-        //numPoses: 1,
-        numHands: 2,
-        minHandDetectionConfidence: 0.8,
+        numPoses: 1,
+        minPoseDetectionConfidence: 0.8,
         minTrackingConfidence: 0.8,
     });
     // await poseLandmarker.setOptions({ runningMode: "VIDEO" });
     console.log("✅ Pose model loaded");
+}
+
+// Hand Landmarker setup
+async function setupHandLandmarker() {
+    const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+    );
+
+    handLandmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+            modelAssetPath:
+                "hand_landmarker.task",
+        },
+        runningMode: "VIDEO",
+        numHands: 2,
+        minHandDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.7,
+    });
+
+    console.log("✅ Hand Landmarker loaded");
 }
 
 // pose detection canvas overlay
