@@ -131,8 +131,8 @@ async function setupPoseLandmarker() {
 
     poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
         baseOptions: {
-            //modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
-            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task"
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
+            //modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task"
         },
         runningMode: "VIDEO",
         numPoses: 1,
@@ -211,31 +211,59 @@ function detectPose() {
 }
 
 // draw pose landmarks
-function drawPose2(results) {
+function drawPose(results) {
     ctx.clearRect(0, 0, poseCanvas.width, poseCanvas.height);
 
     if (!results.landmarks) return;
     console.log("Detected landmarks:", results.landmarks);
 
-    ctx.fillStyle = "rgba(0, 255, 0, 0.7)";
+    const landmarks = results.landmarks[0];
+
+    ctx.fillStyle = "rgba(0, 255, 0, 0.8)";
     ctx.strokeStyle = "rgba(0, 255, 0, 0.4)";
     ctx.lineWidth = 2;
 
-    for (const landmarks of results.landmarks) {
-        for (const lm of landmarks) {
-            const x = lm.x * poseCanvas.width;
-            const y = lm.y * poseCanvas.height;
-            ctx.beginPath();
-            ctx.arc(x, y, 4, 0, 2 * Math.PI);
-            ctx.fill();
+    const connections = [
+        [11, 13], [13, 15], // Left arm
+        [12, 14], [14, 16], // Right arm
+        [11, 12],           // Shoulders
+        [15, 17], [16, 18], // Hands
+        [23, 24], [11, 23], [12, 24] // Torso
+    ];
 
+    ctx.beginPath();
+    for (const [a, b] of connections) {
+        const p1 = landmarks[a];
+        const p2 = landmarks[b];
+        if (p1 && p2) {
+            ctx.moveTo(p1.x * poseCanvas.width, p1.y * poseCanvas.height);
+            ctx.lineTo(p2.x * poseCanvas.width, p2.y * poseCanvas.height);
         }
+    }
+    ctx.stroke();
+
+    //for (const landmarks of results.landmarks) {
+    //    for (const lm of landmarks) {
+    //        const x = lm.x * poseCanvas.width;
+    //        const y = lm.y * poseCanvas.height;
+    //        ctx.beginPath();
+    //        ctx.arc(x, y, 4, 0, 2 * Math.PI);
+    //        ctx.fill();
+    //    }
+    //}
+    for (const lm of landmarks) {
+        const x = lm.x * poseCanvas.width;
+        const y = lm.y * poseCanvas.height;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, 2 * Math.PI);
+        ctx.fill();
     }
 
     // (later) connect landmarks lines, gestures
+    detectHandRubbing(landmarks);
 }
 
-function drawPose(results) {
+function drawPose2(results) {
     ctx.clearRect(0, 0, poseCanvas.width, poseCanvas.height);
     ctx.fillStyle = "rgba(0, 255, 0, 0.7)";
 
@@ -273,7 +301,29 @@ function detectHandRubbing(landmarks) {
         rightIndex,
     });
 
-    const threshold = 0.07; // closer hands
+    // Live distance overlay (bottom-right)
+    let distDiv = document.getElementById('dist-info');
+    if (!distDiv) {
+        distDiv = document.createElement('div');
+        distDiv.id = 'dist-info';
+        Object.assign(distDiv.style, {
+            position: 'fixed',
+            bottom: '10px',
+            right: '10px',
+            background: 'rgba(0,0,0,0.5)',
+            color: 'lime',
+            padding: '6px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontFamily: 'monospace'
+        });
+        document.body.appendChild(distDiv);
+    }
+    distDiv.innerText = `WristDist: ${distWrist.toFixed(3)} | IndexDist: ${distIndex.toFixed(3)}`;
+
+    console.log("Wrists:", distWrist.toFixed(3), "Index:", distIndex.toFixed(3));
+
+    const threshold = 0.1; // closer hands
     const bothClose = distWrist < threshold && distIndex < threshold;
 
     if (bothClose) {
