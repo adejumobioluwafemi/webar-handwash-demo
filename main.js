@@ -323,7 +323,7 @@ function detectHandRubbing(landmarks) {
 
     console.log("Wrists:", distWrist.toFixed(3), "Index:", distIndex.toFixed(3));
 
-    const threshold = 0.1; // closer hands
+    const threshold = 0.3; // closer hands
     const bothClose = distWrist < threshold && distIndex < threshold;
 
     if (bothClose) {
