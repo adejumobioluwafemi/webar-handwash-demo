@@ -5,17 +5,20 @@ import Stats from 'stats.js';
 
 import {
     FilesetResolver,
-    PoseLandmarker,
+    //PoseLandmarker,
+    HandLandmarker
 } from "@mediapipe/tasks-vision"
 import { distance, getColorSpaceMethod } from 'three/src/nodes/TSL.js';
 
 let scene, camera, renderer, model, stats;
 let video, poseLandmarker;
+let handLandmarker;
 let overlayResponseTimes = [];
 let lastOverlayUpdate = performance.now();
 let goodJobText;
 let rubbingStartTime = null;
 let showGoodJob = false;
+let lastUpdateTime = performance.now();
 
 init();
 animate();
@@ -43,7 +46,7 @@ async function init() {
         '/twohands.gltf',
         (gltf) => {
             model = gltf.scene;
-            model.scale.set(0.3, 0.5, 0.3);
+            model.scale.set(1, 1, 1);
             model.position.set(0, -0.2, -1.2);
             scene.add(model);
         },
@@ -59,18 +62,20 @@ async function init() {
     document.body.appendChild(stats.dom);
 
     // Resize handler
-    //window.addEventListener('resize', onWindowResize, false);
-    window.addEventListener("resize", () => {
-        poseCanvas.width = window.innerWidth;
-        poseCanvas.height = window.innerHeight;
-    });
+    window.addEventListener('resize', onWindowResize, false);
+    //window.addEventListener("resize", () => {
+    //    poseCanvas.width = window.innerWidth;
+    //    poseCanvas.height = window.innerHeight;
+    //});
 
 
     // setup video background 
     await setupCameraFeed();
 
     // setup pose detector
-    await setupPoseLandmarker();
+    // await setupPoseLandmarker();
+    // hand detector
+    await setupHandLandmarker();
 
     // "Good Job" overlay text
     goodJobText = document.createElement('div');
@@ -94,6 +99,8 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    handCanvas.width = window.innerWidth;
+    handCanvas.height = window.innerHeight;
 }
 
 async function setupCameraFeed() {
@@ -132,30 +139,44 @@ async function setupPoseLandmarker() {
     poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
         baseOptions: {
             //modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
-            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task"
+            //modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task"
+            modelAssetPath: "hand_landmarker.task"
         },
         runningMode: "VIDEO",
-        numPoses: 1,
+        //numPoses: 1,
+        numHands: 2,
         minPoseDetectionConfidence: 0.8,
         minTrackingConfidence: 0.8,
     });
-    await poseLandmarker.setOptions({ runningMode: "VIDEO" });
+    // await poseLandmarker.setOptions({ runningMode: "VIDEO" });
     console.log("✅ Pose model loaded");
 }
 
 // pose detection canvas overlay
-const poseCanvas = document.createElement("canvas");
-const ctx = poseCanvas.getContext("2d");
-poseCanvas.width = window.innerWidth;
-poseCanvas.height = window.innerHeight;
-poseCanvas.style.position = "fixed";
-poseCanvas.style.top = "0";
-poseCanvas.style.left = "0";
-poseCanvas.style.zIndex = "10";
-poseCanvas.style.pointerEvents = "none";
-document.body.appendChild(video);
-document.body.appendChild(renderer.domElement);
-document.body.appendChild(poseCanvas);
+//const poseCanvas = document.createElement("canvas");
+//const ctx = poseCanvas.getContext("2d");
+//poseCanvas.width = window.innerWidth;
+//poseCanvas.height = window.innerHeight;
+//poseCanvas.style.position = "fixed";
+//poseCanvas.style.top = "0";
+//poseCanvas.style.left = "0";
+//poseCanvas.style.zIndex = "10";
+//poseCanvas.style.pointerEvents = "none";
+//document.body.appendChild(video);
+//document.body.appendChild(renderer.domElement);
+//document.body.appendChild(poseCanvas);
+
+// Canvas overlay for landmarks
+const handCanvas = document.createElement("canvas");
+const ctx = handCanvas.getContext("2d");
+handCanvas.width = window.innerWidth;
+handCanvas.height = window.innerHeight;
+handCanvas.style.position = "fixed";
+handCanvas.style.top = "0";
+handCanvas.style.left = "0";
+handCanvas.style.zIndex = "10";
+handCanvas.style.pointerEvents = "none";
+document.body.appendChild(handCanvas);
 
 // main animation
 function animate() {
@@ -176,38 +197,118 @@ function animate() {
 
     renderer.render(scene, camera);
 
-    if (poseLandmarker && video.readyState >= 2 && video.videoWidth > 0) {
+    //if (poseLandmarker && video.readyState >= 2 && video.videoWidth > 0) {
+    //    try {
+    //        const start = performance.now();
+    //        const results = poseLandmarker.detectForVideo(video, start);
+    //        if (results.landmarks && results.landmarks.length > 0) {
+    //            console.log("Pose detected!", results.landmarks[0].length, "keypoints");
+    //        }
+
+    //        drawPose(results);
+    //    } catch (err) {
+    //        console.error("Pose detection error:", err);
+    //    }
+    //}
+    if (handLandmarker && video.readyState >= 2 && video.videoWidth > 0) {
         try {
             const start = performance.now();
-            const results = poseLandmarker.detectForVideo(video, start);
+            const results = handLandmarker.detectForVideo(video, start);
             if (results.landmarks && results.landmarks.length > 0) {
-                console.log("Pose detected!", results.landmarks[0].length, "keypoints");
+                drawHands(results);
             }
-
-            drawPose(results);
         } catch (err) {
-            console.error("Pose detection error:", err);
+            console.error("Hand detection error:", err);
         }
     }
     stats.end();
-    // Display FPS & overlay stats
+    // Display overlay stats
     displayPerformanceInfo();
 
 
 }
 
-function detectPose() {
-    const start = performance.now();
-    if (video.videoWidth === 0) {
-        console.warn("Video not ready yet");
-        return;
+// draw hand keypoints & detect rubbing
+function drawHands(results) {
+    ctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+    const landmarksList = results.landmarks;
+
+    landmarksList.forEach((landmarks) => {
+        ctx.strokeStyle = "rgba(0, 255, 0, 0.5)";
+        ctx.lineWidth = 2;
+        ctx.fillStyle = "lime";
+
+        // draw points
+        for (const lm of landmarks) {
+            const x = lm.x * handCanvas.width;
+            const y = lm.y * handCanvas.height;
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        connectHandLandmarks(ctx, landmarks);
+    });
+
+    if (landmarksList.length === 2) {
+        detectHandRubbing(landmarksList);
     }
-    try {
-        const results = poseLandmarker.detectForVideo(video, start);
-        drawPose(results);
-    } catch (err) {
-        console.error("Pose detection error:", err);
+}
+
+// Draw hand bone structure
+function connectHandLandmarks(ctx, landmarks) {
+    const fingers = [
+        [0, 1, 2, 3, 4],
+        [0, 5, 6, 7, 8],
+        [0, 9, 10, 11, 12],
+        [0, 13, 14, 15, 16],
+        [0, 17, 18, 19, 20],
+    ];
+    ctx.beginPath();
+    fingers.forEach(finger => {
+        for (let i = 0; i < finger.length - 1; i++) {
+            const a = landmarks[finger[i]];
+            const b = landmarks[finger[i + 1]];
+            ctx.moveTo(a.x * handCanvas.width, a.y * handCanvas.height);
+            ctx.lineTo(b.x * handCanvas.width, b.y * handCanvas.height);
+        };
+    });
+    ctx.stroke();
+}
+
+function detectHandRubbing(hands) {
+    const left = hands[0][0]; // Palm base
+    const right = hands[1][0];
+    if (!left || !right) return;
+
+    const dist = distance_(left, right);
+    const now = performance.now();
+    const deltaT = (now - lastUpdateTime) / 1000;
+
+    if (lastDistance !== null) {
+        const velocity = Math.abs(dist - lastDistance) / deltaT; // m/s equivalent
+        const close = dist < 0.25; // Hands close
+        const fast = velocity > 0.4; // Rubbing motion threshold
+
+        if (close && fast) {
+            if (!rubbingStartTime) rubbingStartTime = now;
+            else if (now - rubbingStartTime > 700 && !showGoodJob) {
+                showGoodJob = true;
+                goodJobText.style.display = "block";
+                setTimeout(() => {
+                    goodJobText.style.display = "none";
+                    showGoodJob = false;
+                }, 2000);
+            }
+        } else {
+            rubbingStartTime = null;
+        }
+
+        displayDistanceInfo(dist, velocity);
     }
+
+    lastDistance = dist;
+    lastUpdateTime = now;
 }
 
 // draw pose landmarks
@@ -280,7 +381,7 @@ function drawPose2(results) {
 }
 
 // Detect when hands are rubbing together
-function detectHandRubbing(landmarks) {
+function detectHandRubbing_pose(landmarks) {
     const leftWrist = landmarks[15];
     const rightWrist = landmarks[16];
     const leftIndex = landmarks[19];
@@ -345,12 +446,34 @@ function detectHandRubbing(landmarks) {
     }
 }
 
-// Helper to compute 3D distance between two keypoints
+// compute 3D euclidean distance between two keypoints
 function distance_(a, b) {
     const dx = a.x - b.x;
     const dy = a.y - b.y;
     const dz = a.z - b.z;
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+// info overlays
+function displayDistanceInfo(dist, velocity) {
+    let distDiv = document.getElementById('dist-info');
+    if (!distDiv) {
+        distDiv = document.createElement('div');
+        distDiv.id = 'dist-info';
+        Object.assign(distDiv.style, {
+            position: 'fixed',
+            bottom: '10px',
+            right: '10px',
+            background: 'rgba(0,0,0,0.6)',
+            color: 'lime',
+            padding: '8px',
+            borderRadius: '8px',
+            fontFamily: 'monospace',
+            fontSize: '13px'
+        });
+        document.body.appendChild(distDiv);
+    }
+    distDiv.innerText = `Distance: ${dist.toFixed(3)} | Velocity: ${velocity.toFixed(2)}`;
 }
 
 function displayPerformanceInfo() {
@@ -375,5 +498,5 @@ function displayPerformanceInfo() {
         overlayResponseTimes.reduce((a, b) => a + b, 0) / overlayResponseTimes.length
     ).toFixed(2);
 
-    infoDiv.innerHTML = `FPS: ${stats.dom.children[0].textContent.replace('FPS', '').trim()} | Overlay lag: ${avgOverlayLag} ms`;
+    infoDiv.innerHTML = `Overlay lag: ${avgOverlayLag} ms`;
 }
