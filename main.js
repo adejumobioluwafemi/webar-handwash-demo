@@ -43,7 +43,7 @@ async function init() {
     // Load the overlay (arrow)
     const loader = new GLTFLoader();
     loader.load(
-        '/twohands.gltf',
+        '/public/direction_arrow/arrow.gltf',
         (gltf) => {
             model = gltf.scene;
             model.scale.set(1, 1, 1);
