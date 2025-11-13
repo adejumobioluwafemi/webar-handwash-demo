@@ -145,7 +145,7 @@ async function setupPoseLandmarker() {
         runningMode: "VIDEO",
         //numPoses: 1,
         numHands: 2,
-        minPoseDetectionConfidence: 0.8,
+        minHandDetectionConfidence: 0.8,
         minTrackingConfidence: 0.8,
     });
     // await poseLandmarker.setOptions({ runningMode: "VIDEO" });
