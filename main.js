@@ -40,6 +40,22 @@ progressBox.style.cssText = `
   text-align: center;
   z-index: 200;
 `;
+
+const debugBox = document.createElement("div");
+debugBox.style.cssText = `
+  position: fixed;
+  bottom: 80px;
+  left: 10px;
+  background: rgba(0,0,0,0.7);
+  color: white;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 0.9em;
+  z-index: 600;
+  line-height: 1.4em;
+`;
+document.body.appendChild(debugBox);
+
 const percentSpan = document.createElement("div");
 const timeSpan = document.createElement("div");
 progressBox.append(percentSpan, timeSpan);
@@ -217,8 +233,10 @@ function drawHands(allHands) {
 
 // RUBBING DETECTION 
 function detectHandRubbing(hands) {
-    const left = hands[0][0];
-    const right = hands[1][0];
+    //const left = hands[0][0]; // wrist
+    //const right = hands[1][0]; // wrist
+    const left = hands[0][8]; // index finger tip
+    const right = hands[1][8]; // index finger tip
     if (!left || !right) return;
 
     const dist = Math.hypot(left.x - right.x, left.y - right.y, left.z - right.z);
@@ -227,8 +245,16 @@ function detectHandRubbing(hands) {
     const dt = (now - lastUpdateTime) / 1000;
     const velocity = lastDistance ? Math.abs(dist - lastDistance) / dt : 0;
 
-    const close = dist < 0.4;
-    const fast = velocity > 0.03;
+    const close = dist < 0.25;
+    const fast = velocity > 0.015;
+
+    debugBox.innerHTML = `
+        <b>Hand Debug</b><br>
+        Distance: ${dist.toFixed(3)}<br>
+        Speed: ${velocity.toFixed(3)}<br>
+        Close? <span style="color:${close ? 'lime' : 'red'}">${close}</span><br>
+        Fast? <span style="color:${fast ? 'lime' : 'red'}">${fast}</span>
+    `;
 
     if (close && fast) {
         if (!rubbingStartTime) rubbingStartTime = now;
