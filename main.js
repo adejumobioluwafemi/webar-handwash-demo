@@ -1,13 +1,3 @@
-/****************************************************************************************
- HAND-WASH XR + MEDIAPIPE (Optimized Version)
- Includes:
- - Voice guidance (“Show both hands to the camera”, “Great job”, etc.)
- - Improved contact scoring
- - Improved circular motion detection
- - Improved palm orientation detection
- - Hand-presence detection
-*****************************************************************************************/
-
 import * as THREE from 'three';
 import Stats from 'stats.js';
 import {
@@ -21,6 +11,7 @@ let video, handLandmarker;
 
 let rubbingStartTime = null;
 let lastUpdateTime = performance.now();
+let timerActive = false;
 let showGoodJob = false;
 
 let lastHandSeenTime = 0;
@@ -28,6 +19,21 @@ let hasAnnouncedShowHands = false;
 
 let motionHistory = [];
 let lastCenter = null;
+
+// Stable-frame counters
+const stableCounters = {
+    contact: 0,
+    circular: 0,
+    orientation: 0
+};
+const STABLE_FRAMES = 15;
+
+// Sticky washing progress
+let washingProgress = {
+    contact: false,
+    circularMotion: false,
+    orientation: false
+};
 
 // overlays
 const handCanvas = document.createElement("canvas");
@@ -103,6 +109,45 @@ aiStats.style.cssText = `
   z-index: 500;
 `;
 document.body.appendChild(aiStats);
+
+// Guidance panel 
+const guidanceBox = document.createElement("div");
+guidanceBox.style.cssText = `
+  position: fixed;
+  top: 10px; right: 10px;
+  background: rgba(0,0,0,0.75);
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: white;
+  font-size: 1em;
+  z-index: 800;
+`;
+document.body.appendChild(guidanceBox);
+
+// Checklist (NEW)
+const checklist = document.createElement("div");
+checklist.style.cssText = `
+  position: fixed;
+  top: 10px; left: 10px;
+  background: rgba(0,0,0,0.65);
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: white;
+  font-size: 1em;
+  line-height:1.5em;
+  z-index: 850;
+`;
+checklist.innerHTML = `
+  <b>Technique Checklist</b><br>
+  • <span id="chk-contact">⬜ Hands close</span><br>
+  • <span id="chk-circular">⬜ Circular motion</span><br>
+  • <span id="chk-orient">⬜ Palms face each other</span>
+`;
+document.body.appendChild(checklist);
+
+const chkContact = document.getElementById("chk-contact");
+const chkCircular = document.getElementById("chk-circular");
+const chkOrient = document.getElementById("chk-orient");
 
 
 // speech control (prevents overlapping)
@@ -207,7 +252,7 @@ async function setupHandLandmarker() {
     });
 }
 
-
+// detection loop
 function startHandLoop() {
     setInterval(() => {
         if (!handLandmarker || video.readyState < 2) return;
@@ -220,7 +265,6 @@ function startHandLoop() {
 
         if (!result.landmarks || result.landmarks.length === 0) {
             handleNoHandsDetected();
-            ctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
             return;
         }
 
@@ -233,24 +277,27 @@ function handleNoHandsDetected() {
     ctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
 
     const now = performance.now();
-    if (now - lastHandSeenTime > 2000 && !hasAnnouncedShowHands) {
+    if (now - lastHandSeenTime > 2000) {
         speak("Show both hands to the camera");
-        hasAnnouncedShowHands = true;
+        guidanceBox.innerHTML = "👐 Please show both hands";
     }
 
     rubbingStartTime = null;
-    hideProgress();
+    timerActive = false;
+    progressBox.style.display = "none";
 }
 
 function handleHandsDetected(hands) {
     lastHandSeenTime = performance.now();
     hasAnnouncedShowHands = false;
+    guidanceBox.innerHTML = "";
 
     // Log landmark positions for your future AI coach
     console.log(JSON.stringify(hands));
     drawHands(hands);
 
     if (hands.length < 2) {
+        guidanceBox.innerHTML = "👐 Please show both hands";
         speak("Please show both hands");
         return;
     }
@@ -258,33 +305,9 @@ function handleHandsDetected(hands) {
     const now = performance.now();
     const washing = detectRealHandWashing(hands, now);
 
-    debugBox.innerHTML = `
-        <b>Confidence:</b> ${washing.confidence.toFixed(0)}%<br>
-        <b>Contact Score:</b> ${washing.contactScore}<br>
-        <b>Circular:</b> ${washing.hasCircularMotion ? "Yes" : "No"}<br>
-        <b>Orientation:</b> ${washing.correctOrientation ? "Yes" : "No"}
-    `;
-
-    if (washing.isWashing) {
-        if (!rubbingStartTime) rubbingStartTime = now;
-        const elapsed = now - rubbingStartTime;
-
-        showProgress(elapsed, 20000);
-
-        if (elapsed > 20000 && !showGoodJob) {
-            showGoodJob = true;
-            goodJobText.style.display = "block";
-            speak("Excellent! You have completed 20 seconds of proper hand washing");
-
-            setTimeout(() => {
-                goodJobText.style.display = "none";
-                showGoodJob = false;
-            }, 3000);
-        }
-    } else {
-        rubbingStartTime = null;
-        hideProgress();
-    }
+    updateProgress(washing);
+    updateChecklist();
+    debugInfo(washing);
 }
 
 // draw hands
@@ -313,20 +336,27 @@ function detectRealHandWashing(hands, now) {
     const circular = detectCircularMotion(hands, now);
     const orientation = detectPalmOrientation(hands);
 
-    let confidence = 0;
-    if (contactScore >= 3) confidence += 40;
-    if (circular) confidence += 35;
-    if (orientation) confidence += 25;
+    updateCriterion("contact", contactScore >= 3);
+    updateCriterion("circularMotion", circular);
+    updateCriterion("orientation", orientation);
 
     return {
-        isWashing: confidence >= 60,
-        confidence,
         contactScore,
         hasCircularMotion: circular,
         correctOrientation: orientation
     };
 }
 
+function updateCriterion(name, conditionMet) {
+    if (conditionMet) {
+        stableCounters[name]++;
+        if (stableCounters[name] > STABLE_FRAMES) {
+            washingProgress[name] = true;
+        }
+    } else {
+        stableCounters[name] = 0;
+    }
+}
 
 function getContactScore(hands) {
     const L = hands[0];
@@ -431,6 +461,60 @@ function palmVector(hand) {
     };
 }
 
+function updateProgress(washing) {
+    const missing = [];
+
+    if (!washingProgress.contact) missing.push("👐 Bring hands closer");
+    if (!washingProgress.circularMotion) missing.push("🔄 Make circular rubbing motions");
+    if (!washingProgress.orientation) missing.push("🤲 Palms should face each other");
+
+    // If at least 2 criteria are met -> start timer
+    const passedCount = Object.values(washingProgress).filter(v => v).length;
+
+    if (passedCount >= 2) {
+        if (!timerActive) {
+            timerActive = true;
+            rubbingStartTime = performance.now();
+        }
+    } else {
+        timerActive = false;
+        progressBox.style.display = "none";
+    }
+
+    // Timer running
+    if (timerActive) {
+        const elapsed = performance.now() - rubbingStartTime;
+        showProgress(elapsed, 20000);
+
+        if (elapsed >= 20000) {
+            goodJobText.style.display = "block";
+            speak("Excellent! You have completed 20 seconds of proper hand washing");
+            setTimeout(() => (goodJobText.style.display = "none"), 3000);
+        }
+    }
+
+    // Provide feedback
+    if (missing.length > 0) {
+        guidanceBox.innerHTML = `Fix the following:<br>${missing.join("<br>")}`;
+        speak(missing[0]); // speak highest priority issue
+    } else {
+        guidanceBox.innerHTML = "👌 Great technique! Keep going";
+    }
+}
+
+function updateChecklist() {
+    chkContact.textContent = washingProgress.contact ? "✔ Hands close" : "⬜ Hands close";
+    chkCircular.textContent = washingProgress.circularMotion ? "✔ Circular motion" : "⬜ Circular motion";
+    chkOrient.textContent = washingProgress.orientation ? "✔ Palms face each other" : "⬜ Palms face each other";
+}
+
+function debugInfo(w) {
+    debugBox.innerHTML = `
+        <b>Contact Score:</b> ${w.contactScore}<br>
+        <b>Circular:</b> ${w.hasCircularMotion}<br>
+        <b>Orientation:</b> ${w.correctOrientation}
+    `;
+}
 
 function showProgress(elapsed, total) {
     const pct = Math.min(100, (elapsed / total) * 100);
