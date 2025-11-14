@@ -140,7 +140,7 @@ checklist.style.cssText = `
 checklist.innerHTML = `
   <b>Technique Checklist</b><br>
   • <span id="chk-contact">⬜ Hands close</span><br>
-  • <span id="chk-circular">⬜ Circular motion</span><br>
+  • <span id="chk-circular">⬜ Circular Rubbing motion</span><br>
   • <span id="chk-orient">⬜ Palms face each other</span>
 `;
 document.body.appendChild(checklist);
@@ -471,7 +471,7 @@ function updateProgress(washing) {
     // If at least 2 criteria are met -> start timer
     const passedCount = Object.values(washingProgress).filter(v => v).length;
 
-    if (passedCount >= 2) {
+    if (passedCount >= 1) {
         if (!timerActive) {
             timerActive = true;
             rubbingStartTime = performance.now();
@@ -504,7 +504,7 @@ function updateProgress(washing) {
 
 function updateChecklist() {
     chkContact.textContent = washingProgress.contact ? "✔ Hands close" : "⬜ Hands close";
-    chkCircular.textContent = washingProgress.circularMotion ? "✔ Circular motion" : "⬜ Circular motion";
+    chkCircular.textContent = washingProgress.circularMotion ? "✔ Circular Rubbing motion" : "⬜ Circular motion";
     chkOrient.textContent = washingProgress.orientation ? "✔ Palms face each other" : "⬜ Palms face each other";
 }
 
