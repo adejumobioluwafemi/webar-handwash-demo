@@ -153,6 +153,7 @@ const chkOrient = document.getElementById("chk-orient");
 // speech control (prevents overlapping)
 let lastSpokenText = "";
 let speaking = false;
+let currentPriorityIssue = null;
 
 function speak(text) {
     if (!window.speechSynthesis) return;
@@ -426,8 +427,58 @@ function detectCircularMotion(hands, now) {
     return directionChanges >= 3;
 }
 
-
 function detectPalmOrientation(hands) {
+    const L = hands[0];
+    const R = hands[1];
+
+    const nL = palmNormal(L);
+    const nR = palmNormal(R);
+
+    if (!nL || !nR) return false;
+
+    // Normalize
+    normalize(nL);
+    normalize(nR);
+
+    const dot = nL.x * nR.x + nL.y * nR.y + nL.z * nR.z;
+
+    return dot < -0.2;
+}
+
+function palmNormal(hand) {
+    const wrist = hand[0];
+    const index = hand[5];
+    const pinky = hand[17];
+    if (!wrist || !index || !pinky) return null;
+
+    // vectors from wrist
+    const v1 = {
+        x: index.x - wrist.x,
+        y: index.y - wrist.y,
+        z: index.z - wrist.z
+    };
+    const v2 = {
+        x: pinky.x - wrist.x,
+        y: pinky.y - wrist.y,
+        z: pinky.z - wrist.z
+    };
+
+    // cross product → palm normal
+    return {
+        x: v1.y * v2.z - v1.z * v2.y,
+        y: v1.z * v2.x - v1.x * v2.z,
+        z: v1.x * v2.y - v1.y * v2.x
+    };
+}
+
+function normalize(v) {
+    const len = Math.hypot(v.x, v.y, v.z);
+    v.x /= len;
+    v.y /= len;
+    v.z /= len;
+}
+
+function detectPalmOrientation_palmvector(hands) {
     const L = hands[0];
     const R = hands[1];
 
@@ -467,6 +518,24 @@ function updateProgress(washing) {
     if (!washingProgress.contact) missing.push("👐 Bring hands closer");
     if (!washingProgress.circularMotion) missing.push("🔄 Make circular rubbing motions");
     if (!washingProgress.orientation) missing.push("🤲 Palms should face each other");
+
+    // PRIORITY: contact → circular → orientation
+    const highest = missing.length > 0 ? missing[0] : null;
+
+    // Speak only when a new highest priority appears
+    if (highest !== currentPriorityIssue) {
+        currentPriorityIssue = highest;
+
+        if (highest) speak(highest);
+        else speak("Great technique! Keep going");
+    }
+
+    // Display same guidance visually
+    if (highest) {
+        guidanceBox.innerHTML = `Fix: ${highest}`;
+    } else {
+        guidanceBox.innerHTML = `👌 Great technique! Keep going`;
+    }
 
     // If at least 2 criteria are met -> start timer
     const passedCount = Object.values(washingProgress).filter(v => v).length;
