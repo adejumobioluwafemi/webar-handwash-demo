@@ -245,8 +245,8 @@ function detectHandRubbing(hands) {
     const dt = (now - lastUpdateTime) / 1000;
     const velocity = lastDistance ? Math.abs(dist - lastDistance) / dt : 0;
 
-    const close = dist < 0.25;
-    const fast = velocity > 0.015;
+    const close = dist < 0.2; // 0.25
+    const fast = velocity > 0.01; // 0.015
 
     debugBox.innerHTML = `
         <b>Hand Debug</b><br>
