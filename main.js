@@ -110,6 +110,20 @@ aiStats.style.cssText = `
 `;
 document.body.appendChild(aiStats);
 
+// Overlay Lag
+const lagStats = document.createElement("div");
+lagStats.style.cssText = `
+  position: fixed;
+  bottom: 40px; left: 10px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 0.9em;
+  z-index: 500;
+`;
+document.body.appendChild(lagStats);
+
 // Guidance panel 
 const guidanceBox = document.createElement("div");
 guidanceBox.style.cssText = `
@@ -128,7 +142,7 @@ document.body.appendChild(guidanceBox);
 const checklist = document.createElement("div");
 checklist.style.cssText = `
   position: fixed;
-  top: 10px; left: 10px;
+  bottom: 10px; right: 10px;
   background: rgba(0,0,0,0.65);
   padding: 10px 14px;
   border-radius: 8px;
@@ -269,7 +283,11 @@ function startHandLoop() {
             return;
         }
 
+        const overlayStart = performance.now();
         handleHandsDetected(result.landmarks);
+        const overlayLag = performance.now() - overlayStart;
+        lagStats.innerHTML = `Overlay Lag: ${overlayLag.toFixed(1)}ms`;
+
     }, 66);
 }
 
@@ -557,8 +575,24 @@ function updateProgress(washing) {
 
         if (elapsed >= 20000) {
             goodJobText.style.display = "block";
-            speak("Excellent! You have completed 20 seconds of proper hand washing");
+            speak("Excellent! You have completed 20 seconds of proper hand washing. Start a new hand wash");
             setTimeout(() => (goodJobText.style.display = "none"), 3000);
+
+            // reset everything
+            washingProgress = {
+                contact: false,
+                circularMotion: false,
+                orientation: false
+            };
+
+            stableCounters.contact = 0;
+            stableCounters.circular = 0;
+            stableCounters.orientation = 0;
+
+            timerActive = false;
+            rubbingStartTime = null;
+
+            updateChecklist();
         }
     }
 
