@@ -441,7 +441,7 @@ function detectPalmOrientation(hands) {
         vL.y * vR.y +
         vL.z * vR.z;
 
-    return dot < -0.2;
+    return dot < -0.1;
 }
 
 function palmVector(hand) {
