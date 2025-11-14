@@ -227,8 +227,8 @@ function detectHandRubbing(hands) {
     const dt = (now - lastUpdateTime) / 1000;
     const velocity = lastDistance ? Math.abs(dist - lastDistance) / dt : 0;
 
-    const close = dist < 0.25;
-    const fast = velocity > 0.05;
+    const close = dist < 0.4;
+    const fast = velocity > 0.03;
 
     if (close && fast) {
         if (!rubbingStartTime) rubbingStartTime = now;
